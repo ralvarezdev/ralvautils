@@ -1,0 +1,68 @@
+version: '3'
+
+vars:
+  RALVAUTILS_MODULE_PATH: '{{.ROOT_DIR}}/RalvaUtils'
+
+tasks:
+  default:
+    desc: 'Show available tasks'
+    cmds:
+      - task --list
+
+  init:
+    desc: 'Initialize RalvaUtils module (run from repo root)'
+    preconditions:
+      - sh: 'test -f "{{.RALVAUTILS_MODULE_PATH}}/RalvaUtils.psd1"'
+        msg: 'Module not found at {{.RALVAUTILS_MODULE_PATH}}. Run from the repo root: {{.ROOT_DIR}}'
+    cmds:
+      - pwsh -c "Import-Module '{{.RALVAUTILS_MODULE_PATH}}' -Force; Write-Host 'RalvaUtils loaded.' -ForegroundColor Green"
+
+  setup-profile:
+    desc: 'Add RalvaUtils import to PowerShell profile'
+    preconditions:
+      - sh: 'pwsh -c "[bool]($PROFILE)"'
+        msg: 'PowerShell profile not initialized'
+    cmds:
+      - pwsh -c |
+        $line = 'Import-Module "{{.RALVAUTILS_MODULE_PATH}}"'
+        if (-not (Select-String -Path $PROFILE -Pattern ([regex]::Escape($line)) -ErrorAction SilentlyContinue)) {
+          "`n$line" | Add-Content -Path $PROFILE
+          Write-Host "Added to profile: $PROFILE" -ForegroundColor Green
+        } else {
+          Write-Host "Already in profile." -ForegroundColor Yellow
+        }
+
+  test:
+    desc: 'Test module load and list commands'
+    preconditions:
+      - sh: 'test -f "{{.RALVAUTILS_MODULE_PATH}}/RalvaUtils.psd1"'
+        msg: 'Module not found. Run from repo root: {{.ROOT_DIR}}'
+    cmds:
+      - pwsh -c "Import-Module '{{.RALVAUTILS_MODULE_PATH}}' -Force; Get-Command -Module RalvaUtils | Format-Table Name, CommandType"
+
+  config-laptop-suffix:
+    desc: 'Configure laptop suffix (e.g., -LAPTOP-JCIDV7GB)'
+    preconditions:
+      - sh: 'test -f "{{.RALVAUTILS_MODULE_PATH}}/RalvaUtils.psd1"'
+        msg: 'Module not found'
+    vars:
+      SUFFIX: '{{.CLI_ARGS | default "-LAPTOP-" }}'
+    cmds:
+      - pwsh -c "Import-Module '{{.RALVAUTILS_MODULE_PATH}}' -Force; Set-RalvaConfig -Key LaptopSuffix -Value '{{.SUFFIX}}'"
+
+  config-project-roots:
+    desc: 'Configure project roots (semicolon-separated paths)'
+    preconditions:
+      - sh: 'test -f "{{.RALVAUTILS_MODULE_PATH}}/RalvaUtils.psd1"'
+        msg: 'Module not found'
+    vars:
+      PATHS: '{{.CLI_ARGS | default "" }}'
+    cmds:
+      - pwsh -c |
+        Import-Module '{{.RALVAUTILS_MODULE_PATH}}' -Force
+        $paths = '{{.PATHS}}' -split ';' | Where-Object { $_ }
+        if ($paths) {
+          Set-RalvaConfig -Key ProjectRoots -Value $paths
+        } else {
+          Write-Host "Usage: task config-project-roots -- 'C:\path1;C:\path2'" -ForegroundColor Yellow
+        }

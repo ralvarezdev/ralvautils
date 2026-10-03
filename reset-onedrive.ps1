@@ -1,0 +1,1 @@
+C:\Program Files\Microsoft OneDrive\onedrive.exe /reset

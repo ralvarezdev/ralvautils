@@ -1,0 +1,1 @@
+New-Item -ItemType SymbolicLink -Path "C:\Users\ralva\OneDrive\Documents\My Games" -Target "C:\Users\ralva\OneDrive\Documents\private\games\My Games"
